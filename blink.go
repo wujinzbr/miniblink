@@ -44,7 +44,7 @@ func handleDispatchMsg() {
 			}
 		}
 	}
-	return nil
+	return
 }
 
 // 初始化blink,释放并加载dll,启动调用队列

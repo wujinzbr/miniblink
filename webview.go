@@ -37,9 +37,9 @@ type WebView struct {
 }
 
 // GetHwnd 获取句柄
-func (view *WebView) GetHwnd() win.HWND {
+func (view *WebView) GetHwnd() *win.HWND {
 	if view == nil {
-		return view.handle
+		return &view.handle
 	}
 	return nil
 }

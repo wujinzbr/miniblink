@@ -3,11 +3,12 @@ package miniblink
 //#include "webview.h"
 import "C"
 import (
-	"github.com/del-xiong/miniblink/eventemitter"
-	"github.com/lxn/win"
 	"os"
 	"reflect"
 	"unsafe"
+
+	"github.com/del-xiong/miniblink/eventemitter"
+	"github.com/lxn/win"
 )
 
 type WebView struct {
@@ -33,6 +34,14 @@ type WebView struct {
 	urlEndHandler interface{}
 	// 内容处理回调允许处理的内容类型
 	urlEndHandlerMimeTypes []string
+}
+
+// GetHwnd 获取句柄
+func (view *WebView) GetHwnd() win.HWND {
+	if view == nil {
+		return view.handle
+	}
+	return nil
 }
 
 func NewWebView(isTransparent bool, bounds ...int) *WebView {

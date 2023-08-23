@@ -5,19 +5,49 @@ import "C"
 
 import (
 	"fmt"
-	"github.com/elazarl/go-bindata-assetfs"
-	"github.com/lxn/win"
-	"github.com/del-xiong/miniblink/internal/devtools"
-	"github.com/del-xiong/miniblink/internal/dll"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/del-xiong/miniblink/internal/devtools"
+	"github.com/del-xiong/miniblink/internal/dll"
+	assetfs "github.com/elazarl/go-bindata-assetfs"
+	"github.com/lxn/win"
 )
 
-//任务队列,保证所有的API调用都在痛一个线程
+// 任务队列,保证所有的API调用都在痛一个线程
 var jobQueue = make(chan func())
 
-//初始化blink,释放并加载dll,启动调用队列
+func handleDispatchMsg() {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Println("panic err:%+v", err)
+		}
+	}()
+	select {
+	case job := <-jobQueue:
+		job()
+	default:
+		//消息循环
+		msg := &win.MSG{}
+		if win.GetMessage(msg, 0, 0, 0) != 0 {
+			win.TranslateMessage(msg)
+			//是否传递下去
+			next := true
+			//拿到对应的webview
+			view := getWebViewByHandle(msg.HWnd)
+			if view != nil {
+				next = view.processMessage(msg)
+			}
+			if next {
+				win.DispatchMessage(msg)
+			}
+		}
+	}
+	return nil
+}
+
+// 初始化blink,释放并加载dll,启动调用队列
 func InitBlink() error {
 	//定义dll的路径
 	dllPath := filepath.Join(TempPath, "blink_"+runtime.GOARCH+".dll")
@@ -71,26 +101,7 @@ func InitBlink() error {
 
 		//消费API调用,同时处理好windows消息
 		for {
-			select {
-			case job := <-jobQueue:
-				job()
-			default:
-				//消息循环
-				msg := &win.MSG{}
-				if win.GetMessage(msg, 0, 0, 0) != 0 {
-					win.TranslateMessage(msg)
-					//是否传递下去
-					next := true
-					//拿到对应的webview
-					view := getWebViewByHandle(msg.HWnd)
-					if view != nil {
-						next = view.processMessage(msg)
-					}
-					if next {
-						win.DispatchMessage(msg)
-					}
-				}
-			}
+			handleDispatchMsg()
 		}
 	}()
 

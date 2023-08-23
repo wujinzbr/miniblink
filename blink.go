@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/del-xiong/miniblink/internal/devtools"
-	"github.com/del-xiong/miniblink/internal/dll"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/lxn/win"
+	"github.com/wujinzbr/miniblink/internal/devtools"
+	"github.com/wujinzbr/miniblink/internal/dll"
 )
 
 // 任务队列,保证所有的API调用都在痛一个线程

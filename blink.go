@@ -4,7 +4,9 @@ package miniblink
 import "C"
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -47,37 +49,60 @@ func handleDispatchMsg() {
 	return
 }
 
+// IsPathExists 判断所给路径文件/文件夹是否存在
+func IsPathExists(path string) bool {
+	_, err := os.Stat(path) // os.Stat获取文件信息
+	if err != nil {
+		return !os.IsNotExist(err)
+	}
+	return true
+}
+
+// MakeSureDirectoryPathExists 确保目录存在
+func MakeSureDirectoryPathExists(filepath string) error {
+	if len(filepath) == 0 {
+		return errors.New("文件路径不能为空")
+	}
+	if IsPathExists(filepath) {
+		return nil
+	}
+	return os.MkdirAll(filepath, fs.ModePerm)
+}
+
 // 初始化blink,释放并加载dll,启动调用队列
 func InitBlink() error {
 	//定义dll的路径
 	dllPath := filepath.Join(TempPath, "blink_"+runtime.GOARCH+".dll")
 
 	//准备释放dll到临时目录
-	err := os.MkdirAll(TempPath, 0644)
-	if err != nil {
+	// err := os.MkdirAll(TempPath, 0644)
+	if err := MakeSureDirectoryPathExists(TempPath); err != nil {
 		return fmt.Errorf("无法创建临时目录：%s, err: %s", TempPath, err)
 	}
-	data, err := dll.Asset("blink.dll")
-	if err != nil {
-		return fmt.Errorf("找不到内嵌dll,err: %s", err)
-	}
-	err = func() error {
-		file, err := os.Create(dllPath)
-		defer file.Close()
+	// 判断dll是否存在
+	if !IsPathExists(dllPath) {
+		data, err := dll.Asset("blink.dll")
 		if err != nil {
-			return fmt.Errorf("无法创建dll文件,err: %s", err)
+			return fmt.Errorf("找不到内嵌dll,err: %s", err)
 		}
-		n, err := file.Write(data)
+		err = func() error {
+			file, err := os.Create(dllPath)
+			defer file.Close()
+			if err != nil {
+				return fmt.Errorf("无法创建dll文件,err: %s", err)
+			}
+			n, err := file.Write(data)
+			if err != nil {
+				return fmt.Errorf("无法NewWebView写入dll文件,err: %s", err)
+			}
+			if len(data) != n {
+				return fmt.Errorf("写入校验失败")
+			}
+			return nil
+		}()
 		if err != nil {
-			return fmt.Errorf("无法NewWebView写入dll文件,err: %s", err)
+			return err
 		}
-		if len(data) != n {
-			return fmt.Errorf("写入校验失败")
-		}
-		return nil
-	}()
-	if err != nil {
-		return err
 	}
 
 	//启动一个新的协程来处理blink的API调用
